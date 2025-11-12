@@ -1,57 +1,55 @@
-# okx-hft-clickhouse
+# okx-hft-timescaledb
 
-Локальная обвязка для ClickHouse под задачи ingestion и BI-аналитики окружения OKX HFT. Репозиторий позволяет быстро поднять единичный узел ClickHouse с типовыми политиками доступа и минимальным мониторингом.
+Локальная обвязка для PostgreSQL 16 с расширением TimescaleDB 2.23. Подходит для обкатки ingestion-сценариев и аналитики на локальном хосте перед миграцией на выделенные серверы (например, Hetzнер).
 
 ## Быстрый старт
-- Установите Docker и Docker Compose.
-- Запустите сервисы: `docker compose up -d`.
-- Проверьте состояние: `docker compose ps` и `docker compose logs clickhouse`.
-- Зайдите в интерактивную консоль: `docker compose exec clickhouse clickhouse-client`.
+- Установите Docker Desktop (Compose версии v2+).
+- Скопируйте `.env` (либо откройте и обновите значения).
+- Поднимите сервис: `docker compose up -d`.
+- Проверьте состояние и логи: `docker compose ps` и `docker compose logs timescaledb`.
+- Подключитесь к БД: `docker compose exec timescaledb psql -U $POSTGRES_USER -d $POSTGRES_DB`.
 
-По умолчанию ClickHouse доступен на портах `8123` (HTTP) и `9000` (native). Экспортёр метрик Prometheus слушает порт `9116`.
+По умолчанию PostgreSQL слушает порт `5432` на `localhost`.
+
+## Переменные окружения
+`docker-compose.yml` использует файл `.env` в корне репозитория:
+
+
+Перед использованием в общем окружении обязательно измените пароль, а сам файл `.env` храните вне VCS либо в секретах CI/CD.
 
 ## Структура проекта
-- `docker-compose.yml` — определение сервисов `clickhouse` и `clickhouse-exporter`.
-- `config/config.d` — общие настройки сервера (хосты, TTL логов, макросы).
-- `config/users.d` — пользователи, права и квоты.
-- `config/profiles.d` — профили настроек ресурсов.
-- `clickhouse_data` (Docker volume) — сохраняемая пользовательская база.
+- `docker-compose.yml` — контейнер PostgreSQL 16 + TimescaleDB 2.23 с healthcheck.
+- `.env` — параметры суперпользователя `admin`, имя БД, тайм-зона.
+- `initdb/` — SQL-скрипты, исполняемые при первом старте (подключение TimescaleDB).
+- `volumes/postgres/` — каталог на диске `D:` с данными и конфигурацией PostgreSQL.
 
-## Пользователи и доступ
-| Пользователь | Пароль (по умолчанию) | Права | Назначение |
-|--------------|----------------------|-------|------------|
-| `admin`      | `admin_password`     | полный доступ, `access_management` | администрирование |
-| `ingest`     | `ingest_password`    | `CREATE TABLE`, `INSERT` в `okx_raw.*` | загрузка данных |
-| `bi_ro`      | `bi_ro_password`     | `SELECT` в `okx_core`, `okx_feat` | BI / аналитика |
-| `default`    | без пароля, только localhost | дефолтный профиль | локальные запросы |
+Каталог `volumes/` лежит в рабочем репозитории на диске `D:` и поэтому данные физически остаются на локальном SSD/НDD. При миграции на Hetzner можно смонтировать отдельный путь или volume.
 
-> ⚠️ Обновите пароли перед выкладкой в любое общее окружение.
+## Работа с TimescaleDB
+- Расширение подключается автоматически при инициализации пустого data-dir (`initdb/01_enable_timescaledb.sql`).
+- Для создания hypertable:
+  ```sql
+  SELECT create_hypertable('metrics', 'ts');
+  ```
+- После первой инициализации дальнейшие изменения в папке `initdb/` не применяются автоматически — используйте миграции/psql.
 
-## Настройки и профили
-- `config/config.d/listen_hosts.xml` — разрешает подключения с хоста.
-- `config/config.d/system_logs_ttl.xml` — TTL для системных логов (3–7 дней).
-- `config/config.d/macros.xml` — кластеры и окружение (`okx_local`, `dev`).
-- `config/profiles.d/limits.xml` — профиль `limited` с лимитами по памяти/потокам, используется пользователем `ingest`.
-- `config/users.d/limits.xml` — квоты (при необходимости можно расширить).
+## Эксплуатация
+- Перезапуск: `docker compose restart timescaledb`.
+- Миграция на другой сервер: перенесите `.env`, `docker-compose.yml` и каталог `volumes/postgres` (или выполните `pg_dump`/`pg_basebackup`).
+- Бэкап (пример в tar):
+  ```
+  docker compose exec timescaledb pg_dump -U $POSTGRES_USER -d $POSTGRES_DB > backup.sql
+  ```
+- Полная очистка данных: `docker compose down -v` (удалит содержимое `volumes/postgres`).
 
-При изменении конфигурации перезапустите сервис: `docker compose restart clickhouse`.
-
-## Мониторинг
-- Экспортёр `clickhouse-exporter` собирает базовые метрики и отдаёт их по HTTP на `http://localhost:9116/metrics`.
-- Добавьте таргет в Prometheus: `- targets: ['host.docker.internal:9116']`.
-- Логи контейнера: `docker compose logs -f clickhouse`.
-
-## Полезные команды
-- Создать бэкап volume: `docker run --rm -v clickhouse_data:/data -v %cd%:/backup busybox tar czf /backup/clickhouse_backup.tar.gz /data`.
-- Очистить данные (удалит всё!): `docker compose down -v`.
-- Обновить образ ClickHouse: `docker compose pull clickhouse && docker compose up -d`.
-
-## Чек-лист перед продом
-- [ ] Заменены пароли пользователей.
+## Чек-лист перед развёртыванием на Hetzner
+- [ ] Установлены уникальные учётные данные администратора.
 - [ ] Настроены firewall/ACL для внешних подключений.
-- [ ] Настроен мониторинг в Prometheus/Grafana.
-- [ ] Согласованы TTL логов и политика резервного копирования.
+- [ ] Организован бэкап (pg_dump, basebackup или snapshot).
+- [ ] Определён план мониторинга (pg_exporter, Grafana, Alertmanager).
+- [ ] Проверены параметры диска/IOPS под нагрузку.
 
 ## Ссылки
-- Документация ClickHouse: <https://clickhouse.com/docs>
-- clickhouse-exporter (f1yegor): <https://github.com/f1yegor/clickhouse_exporter>
+- PostgreSQL 16: <https://www.postgresql.org/docs/current/>
+- TimescaleDB 2.23: <https://docs.timescale.com/>
+- Docker Hub (TimescaleDB): <https://hub.docker.com/r/timescale/timescaledb>
