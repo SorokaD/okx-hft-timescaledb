@@ -76,25 +76,8 @@ services:
       timescaledb:
         condition: service_healthy
 
-  # ==================== Node Exporter (Host Metrics) ====================
-  node-exporter:
-    image: prom/node-exporter:v1.8.2
-    container_name: node-exporter-timescale
-    restart: unless-stopped
-    command:
-      - "--path.procfs=/host/proc"
-      - "--path.sysfs=/host/sys"
-      - "--path.rootfs=/rootfs"
-      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    pid: host
-    ports:
-      - "9100:9100"  # Prometheus scrape port
-    networks:
-      - hft_network
+  # Node Exporter уже запущен на хосте (pid 1506, port 9100)
+  # Не дублируем в docker
 
 networks:
   hft_network:
