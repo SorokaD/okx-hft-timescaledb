@@ -32,38 +32,30 @@ services:
 
   # ==================== PgBouncer (Connection Pooler) ====================
   pgbouncer:
-    image: bitnami/pgbouncer:latest
+    image: edoburu/pgbouncer:1.23.1
     container_name: pgbouncer
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      PGBOUNCER_DATABASE: "*"
-      POSTGRESQL_HOST: timescaledb
-      POSTGRESQL_PORT: 5432
-      POSTGRESQL_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
-      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-postgres}"
+      AUTH_TYPE: scram-sha-256
       # Pool settings
-      PGBOUNCER_POOL_MODE: transaction          # transaction pooling для лучшей эффективности
-      PGBOUNCER_MAX_CLIENT_CONN: 500            # макс клиентских соединений
-      PGBOUNCER_DEFAULT_POOL_SIZE: 25           # соединений на базу
-      PGBOUNCER_MIN_POOL_SIZE: 5                # минимум в пуле
-      PGBOUNCER_RESERVE_POOL_SIZE: 5            # резерв для пиков
-      PGBOUNCER_MAX_DB_CONNECTIONS: 50          # макс соединений к одной БД
-      PGBOUNCER_SERVER_IDLE_TIMEOUT: 600        # закрывать idle соединения через 10 мин
-      PGBOUNCER_IGNORE_STARTUP_PARAMETERS: extra_float_digits
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 500
+      DEFAULT_POOL_SIZE: 25
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      MAX_DB_CONNECTIONS: 50
+      SERVER_IDLE_TIMEOUT: 600
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits
     ports:
-      - "5432:6432"   # Внешний 5432 -> PgBouncer 6432 (клиенты не меняют настройки)
+      - "5432:5432"   # Внешний 5432 -> PgBouncer 5432
     networks:
       - hft_network
     depends_on:
       timescaledb:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "pg_isready", "-h", "localhost", "-p", "6432"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # ==================== Postgres Exporter (для Prometheus) ====================
   postgres-exporter:
