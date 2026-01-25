@@ -50,7 +50,7 @@ services:
       SERVER_IDLE_TIMEOUT: 600
       IGNORE_STARTUP_PARAMETERS: extra_float_digits
     ports:
-      - "127.0.0.1:5432:5432"   # Внешний 5432 -> PgBouncer 5432
+      - "5432:5432"   # Внешний 5432 -> PgBouncer 5432
     networks:
       - hft_network
     depends_on:
