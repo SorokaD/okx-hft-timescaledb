@@ -68,6 +68,8 @@ services:
       DATA_SOURCE_URI: "timescaledb:5432/${POSTGRES_DB:-postgres}?sslmode=disable"
       DATA_SOURCE_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
       DATA_SOURCE_PASS: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    mem_limit: 256m
+    cpus: "0.3"
     ports:
       - "9187:9187"  # Prometheus scrape port
     networks:
@@ -78,7 +80,7 @@ services:
 
   # Node Exporter уже запущен на хосте (pid 1506, port 9100)
   # Не дублируем в docker
-
+  
 networks:
   hft_network:
     driver: bridge
