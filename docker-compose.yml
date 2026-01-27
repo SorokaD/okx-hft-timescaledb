@@ -62,6 +62,9 @@ services:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: postgres-exporter-timescale
     restart: unless-stopped
+    command:
+      - "--extend.query-path=/etc/postgres_exporter/queries.yml"
+      - "--disable-default-metrics"
     env_file:
       - .env
     environment:
@@ -72,6 +75,8 @@ services:
     cpus: "0.3"
     ports:
       - "9187:9187"  # Prometheus scrape port
+    volumes:
+      - ./exporter/queries.yml:/etc/postgres_exporter/queries.yml:ro
     networks:
       - hft_network
     depends_on:
