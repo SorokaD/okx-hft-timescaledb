@@ -34,7 +34,7 @@ services:
 
   # ==================== PgBouncer ====================
   pgbouncer:
-    image: edoburu/pgbouncer:1.23.1   # лучше фиксировать версию, не latest
+    image: edoburu/pgbouncer:v1.25.1-p0   # лучше фиксировать версию, не latest
     container_name: pgbouncer
     restart: unless-stopped
     env_file:
