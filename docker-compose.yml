@@ -53,8 +53,6 @@ services:
       MAX_DB_CONNECTIONS: 50
       SERVER_IDLE_TIMEOUT: 600
 
-      IGNORE_STARTUP_PARAMETERS: extra_float_digits
-
     # ВАЖНО:
     # СНАРУЖИ 6432 -> ВНУТРИ контейнера 5432 (PgBouncer слушает 5432)
     ports:
