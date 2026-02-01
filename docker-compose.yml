@@ -42,9 +42,8 @@ services:
     environment:
       # Подключение PgBouncer к Timescale по внутреннему DNS "timescaledb"
       DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB:-postgres}"
-
+      IGNORE_STARTUP_PARAMETERS: "extra_float_digits,search_path"
       AUTH_TYPE: scram-sha-256
-
       # pool
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 500
