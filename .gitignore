@@ -100,3 +100,5 @@ postgreSQL/*
 # Local postgres data
 pg_data/
 
+.cursorignore
+.gitignore
